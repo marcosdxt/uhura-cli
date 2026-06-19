@@ -2,6 +2,7 @@
 
 mod cli;
 mod commands;
+mod serve;
 
 use clap::Parser;
 

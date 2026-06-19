@@ -24,7 +24,7 @@ anyhow = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 clap = { version = "4", features = ["derive", "env"] }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "time", "sync"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "time", "sync", "net"] }
 async-trait = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
 tokio-postgres = { version = "0.7", features = ["with-serde_json-1", "with-chrono-0_4"] }

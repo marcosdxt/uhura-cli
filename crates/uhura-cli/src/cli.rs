@@ -36,6 +36,8 @@ pub enum Command {
     },
     /// Monitoração: contagem das filas (main/parking) por domínio.
     Top(TopArgs),
+    /// Sobe o backend HTTP de métricas (para o uhura-console).
+    Serve(ServeArgs),
     /// Parking lot: listar e reenviar mensagens.
     Parking {
         #[command(subcommand)]
@@ -182,6 +184,19 @@ pub struct TopArgs {
     /// URL AMQP do RabbitMQ.
     #[arg(long, env = "UHURA_AMQP_URL")]
     pub amqp_url: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct ServeArgs {
+    /// Porta HTTP.
+    #[arg(long, default_value_t = 8080)]
+    pub port: u16,
+    /// URL AMQP do RabbitMQ.
+    #[arg(long, env = "UHURA_AMQP_URL")]
+    pub amqp_url: Option<String>,
+    /// URL do PostgreSQL.
+    #[arg(long, env = "UHURA_PG_URL")]
+    pub postgres_url: Option<String>,
 }
 
 #[derive(Debug, Args)]

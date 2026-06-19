@@ -8,6 +8,7 @@ mod conn;
 mod inbox;
 mod outbox;
 pub mod schema;
+pub mod stats;
 
 pub use conn::connect;
 pub use inbox::Inbox;

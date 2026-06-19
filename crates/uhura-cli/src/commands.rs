@@ -18,6 +18,7 @@ pub async fn dispatch(cli: Cli) -> anyhow::Result<()> {
         Command::Station(a) => cmd_station(a).await,
         Command::Topology { cmd } => cmd_topology(cmd).await,
         Command::Top(a) => cmd_top(a).await,
+        Command::Serve(a) => cmd_serve(a).await,
         Command::Parking { cmd } => cmd_parking(cmd).await,
         Command::Publish(a) => cmd_publish(a).await,
         Command::Consume(a) => cmd_consume(a).await,
@@ -126,6 +127,14 @@ async fn cmd_parking(cmd: ParkingCmd) -> anyhow::Result<()> {
         println!("uhura: parking de '{domain}' tem {parking} mensagem(ns).");
     }
     Ok(())
+}
+
+async fn cmd_serve(a: ServeArgs) -> anyhow::Result<()> {
+    let pg = a.postgres_url.unwrap_or_else(default_pg);
+    let amqp = a.amqp_url.unwrap_or_else(default_amqp);
+    let client = Arc::new(uhura_pg::connect(&pg).await?);
+    let transport = Arc::new(uhura_transport::rabbitmq::RabbitMqTransport::connect(&amqp).await?);
+    crate::serve::run(a.port, client, transport).await
 }
 
 async fn cmd_consume(a: ConsumeArgs) -> anyhow::Result<()> {

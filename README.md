@@ -62,6 +62,8 @@ RabbitMQ reais):
   `ack` no sucesso, `nack`→retry/parking no poison.
 - `uhura parking replay --domain <d>` — reenvia o parking para a exchange.
 - `uhura top --domain <d>` — contagem das filas main/parking.
+- `uhura serve --port <p>` — backend HTTP de métricas (`/api/overview`) para o
+  `uhura-console`.
 - `uhura call <domínio> <método> --data <json>` — cliente RPC (request/reply
   via direct reply-to + correlationId); imprime o `RpcResult`.
 
