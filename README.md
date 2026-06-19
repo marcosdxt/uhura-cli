@@ -69,12 +69,16 @@ Loop de confiabilidade **verificado end-to-end** (publish → station → consum
 dedup → poison → parking → replay) com Postgres + RabbitMQ reais, e coberto por
 testes de integração (testcontainers) em `uhura-pg` e `uhura-transport`.
 
-Cliente RPC (`uhura call`) **verificado em interop** contra um servidor
-`@UhuraFunction` do SDK NestJS.
+- `uhura db sync --cdc <dir>` — lê arquivos `.cdc` (JSON5) e gera triggers de
+  **CDC** nas tabelas de negócio; cada mudança vira um evento no `uhura_outbox`.
 
-Ainda `Unimplemented`: `sync`/`doc` (codegen de contratos), `db sync` (.cdc),
-e o WAL logical decoding (entra sem mudar a ABI). (`method` é alias legado de
-`call`.)
+Cliente RPC (`uhura call`) **verificado em interop** contra um servidor
+`@UhuraFunction` do SDK NestJS. CDC trigger-based **verificado e2e** (INSERT/
+UPDATE/DELETE → outbox → station → consumer, em ordem por entidade).
+
+Ainda `Unimplemented`: `sync`/`doc` (codegen de contratos) e o WAL logical
+decoding (substitui o polling/triggers sem mudar a ABI). (`method` é alias
+legado de `call`.)
 
 ## Desenvolvimento
 
