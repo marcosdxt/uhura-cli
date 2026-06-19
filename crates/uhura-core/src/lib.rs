@@ -5,7 +5,9 @@
 mod config;
 mod envelope;
 mod error;
+mod rpc;
 
 pub use config::UhuraConfig;
 pub use envelope::{Envelope, FactType, CLOUDEVENTS_SPEC_VERSION};
 pub use error::{Error, Result};
+pub use rpc::{ResCode, RpcRequest, RpcResult};

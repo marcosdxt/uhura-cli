@@ -6,19 +6,24 @@
 //! `delivery_mode=2` (persistente). Ver `SPEC.md` §9/§10.
 
 use std::collections::HashSet;
+use std::time::Duration;
 
 use async_trait::async_trait;
+use futures_util::StreamExt;
 use lapin::options::{
-    BasicAckOptions, BasicGetOptions, BasicPublishOptions, ConfirmSelectOptions,
-    ExchangeDeclareOptions, QueueBindOptions, QueueDeclareOptions,
+    BasicAckOptions, BasicConsumeOptions, BasicGetOptions, BasicPublishOptions,
+    ConfirmSelectOptions, ExchangeDeclareOptions, QueueBindOptions, QueueDeclareOptions,
 };
 use lapin::publisher_confirm::Confirmation;
 use lapin::types::{AMQPValue, FieldTable};
 use lapin::{BasicProperties, Channel, Connection, ConnectionProperties, ExchangeKind};
 use tokio::sync::Mutex;
-use uhura_core::{Envelope, Error, Result};
+use uhura_core::{Envelope, Error, Result, RpcRequest, RpcResult};
 
 use crate::{PublishConfirm, UhuraTransport};
+
+/// Pseudo-fila de resposta direta do RabbitMQ (RPC sem declarar fila de reply).
+const DIRECT_REPLY_TO: &str = "amq.rabbitmq.reply-to";
 
 /// Limite de entregas antes de mandar ao parking (poison-message handling).
 const DELIVERY_LIMIT: i32 = 5;
@@ -67,6 +72,9 @@ impl RabbitMqTransport {
     }
     pub fn parking_queue(domain: &str) -> String {
         format!("uhura.{domain}.parking.q")
+    }
+    pub fn rpc_queue_name(domain: &str) -> String {
+        format!("uhura.{domain}.rpc")
     }
 
     /// Nº de mensagens prontas numa fila (via declare passivo).
@@ -118,6 +126,94 @@ impl RabbitMqTransport {
             count += 1;
         }
         Ok(count)
+    }
+
+    /// Cliente RPC: envia uma requisição e aguarda o `RpcResult` (direct reply-to).
+    pub async fn rpc_call(
+        &self,
+        domain: &str,
+        method: &str,
+        data: serde_json::Value,
+        timeout: Duration,
+    ) -> Result<RpcResult<serde_json::Value>> {
+        let request_queue = Self::rpc_queue_name(domain);
+        // Declara a fila de requisição (quorum), compatível com o servidor.
+        self.channel
+            .queue_declare(
+                &request_queue,
+                QueueDeclareOptions {
+                    durable: true,
+                    ..Default::default()
+                },
+                quorum_args(None),
+            )
+            .await
+            .map_err(|e| Error::Transport(format!("declare rpc queue: {e}")))?;
+
+        // Consome a pseudo-fila de resposta direta.
+        let mut replies = self
+            .channel
+            .basic_consume(
+                DIRECT_REPLY_TO,
+                "uhura-rpc-client",
+                BasicConsumeOptions {
+                    no_ack: true,
+                    ..Default::default()
+                },
+                FieldTable::default(),
+            )
+            .await
+            .map_err(|e| Error::Transport(format!("consume reply-to: {e}")))?;
+
+        let correlation = uuid::Uuid::new_v4().to_string();
+        let request = RpcRequest {
+            id: correlation.clone(),
+            domain: domain.to_string(),
+            method: method.to_string(),
+            data,
+        };
+        let body = serde_json::to_vec(&request)
+            .map_err(|e| Error::Transport(format!("serialização da requisição: {e}")))?;
+        let props = BasicProperties::default()
+            .with_correlation_id(correlation.clone().into())
+            .with_reply_to(DIRECT_REPLY_TO.into())
+            .with_content_type("application/json".into());
+
+        self.channel
+            .basic_publish(
+                "",
+                &request_queue,
+                BasicPublishOptions::default(),
+                &body,
+                props,
+            )
+            .await
+            .map_err(|e| Error::Transport(format!("publicação RPC: {e}")))?;
+
+        let wait = async {
+            while let Some(delivery) = replies.next().await {
+                let delivery = delivery.map_err(|e| Error::Transport(format!("reply: {e}")))?;
+                let matches = delivery
+                    .properties
+                    .correlation_id()
+                    .as_ref()
+                    .map(|c| c.as_str())
+                    == Some(correlation.as_str());
+                if matches {
+                    let result: RpcResult<serde_json::Value> =
+                        serde_json::from_slice(&delivery.data).map_err(|e| {
+                            Error::Transport(format!("desserialização do RpcResult: {e}"))
+                        })?;
+                    return Ok(result);
+                }
+            }
+            Err(Error::Transport("stream de reply encerrado".to_string()))
+        };
+
+        match tokio::time::timeout(timeout, wait).await {
+            Ok(result) => result,
+            Err(_) => Err(Error::Transport(format!("timeout RPC após {timeout:?}"))),
+        }
     }
 
     async fn declare_topology(&self, domain: &str) -> Result<()> {

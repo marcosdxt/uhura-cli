@@ -62,13 +62,19 @@ RabbitMQ reais):
   `ack` no sucesso, `nack`→retry/parking no poison.
 - `uhura parking replay --domain <d>` — reenvia o parking para a exchange.
 - `uhura top --domain <d>` — contagem das filas main/parking.
+- `uhura call <domínio> <método> --data <json>` — cliente RPC (request/reply
+  via direct reply-to + correlationId); imprime o `RpcResult`.
 
 Loop de confiabilidade **verificado end-to-end** (publish → station → consume →
 dedup → poison → parking → replay) com Postgres + RabbitMQ reais, e coberto por
 testes de integração (testcontainers) em `uhura-pg` e `uhura-transport`.
 
+Cliente RPC (`uhura call`) **verificado em interop** contra um servidor
+`@UhuraFunction` do SDK NestJS.
+
 Ainda `Unimplemented`: `sync`/`doc` (codegen de contratos), `db sync` (.cdc),
-`method` (RPC), e o WAL logical decoding (entra sem mudar a ABI).
+e o WAL logical decoding (entra sem mudar a ABI). (`method` é alias legado de
+`call`.)
 
 ## Desenvolvimento
 

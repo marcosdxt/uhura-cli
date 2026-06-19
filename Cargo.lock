@@ -3462,12 +3462,14 @@ name = "uhura-transport"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "futures-util",
  "lapin",
  "serde_json",
  "testcontainers-modules",
  "tokio",
  "tracing",
  "uhura-core",
+ "uuid",
 ]
 
 [[package]]

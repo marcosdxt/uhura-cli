@@ -45,6 +45,8 @@ pub enum Command {
     Publish(PublishArgs),
     /// Consome eventos de um domínio (diagnóstico) com idempotência via Inbox.
     Consume(ConsumeArgs),
+    /// Chama um método RPC e imprime o RpcResult (cliente).
+    Call(CallArgs),
     /// Chama um método RPC (injeção de primitiva).
     Method(MethodArgs),
     /// Gera/serve a documentação de contratos e serviços.
@@ -195,6 +197,23 @@ pub struct ConsumeArgs {
     /// Rejeita mensagens desta partição (simula poison → parking).
     #[arg(long)]
     pub reject: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct CallArgs {
+    /// Domínio (ex.: `usuario.info`).
+    pub domain: String,
+    /// Método (ex.: `hydrate`).
+    pub method: String,
+    /// Argumentos em JSON.
+    #[arg(long)]
+    pub data: String,
+    /// Timeout em segundos.
+    #[arg(long, default_value_t = 30)]
+    pub timeout: u64,
+    /// URL AMQP do RabbitMQ.
+    #[arg(long, env = "UHURA_AMQP_URL")]
+    pub amqp_url: Option<String>,
 }
 
 #[derive(Debug, Args)]

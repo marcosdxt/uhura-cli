@@ -21,6 +21,7 @@ pub async fn dispatch(cli: Cli) -> anyhow::Result<()> {
         Command::Parking { cmd } => cmd_parking(cmd).await,
         Command::Publish(a) => cmd_publish(a).await,
         Command::Consume(a) => cmd_consume(a).await,
+        Command::Call(a) => cmd_call(a).await,
         Command::Method(a) => cmd_method(a),
         Command::Doc(a) => cmd_doc(a),
     }
@@ -166,6 +167,30 @@ async fn cmd_publish(a: PublishArgs) -> anyhow::Result<()> {
         "uhura: evento gravado no outbox (id={id}, type={}).",
         envelope.r#type
     );
+    Ok(())
+}
+
+async fn cmd_call(a: CallArgs) -> anyhow::Result<()> {
+    let data: serde_json::Value = serde_json::from_str(&a.data)
+        .map_err(|e| anyhow::anyhow!("--data não é JSON válido: {e}"))?;
+    let url = a.amqp_url.unwrap_or_else(default_amqp);
+    let transport = uhura_transport::rabbitmq::RabbitMqTransport::connect(&url).await?;
+    let result = transport
+        .rpc_call(
+            &a.domain,
+            &a.method,
+            data,
+            std::time::Duration::from_secs(a.timeout),
+        )
+        .await?;
+    println!(
+        "uhura: resCode={:?} data={}",
+        result.res_code,
+        serde_json::to_string(&result.data).unwrap_or_else(|_| "null".to_string())
+    );
+    if let Some(msg) = result.error_message {
+        println!("  errorMessage: {msg}");
+    }
     Ok(())
 }
 
