@@ -1,0 +1,33 @@
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "UNLICENSED"
+repository = "https://github.com/marcosdxt/uhura-cli"
+authors = ["Dextro Labs"]
+
+[workspace.dependencies]
+# crates internos
+uhura-core = { path = "crates/uhura-core" }
+uhura-transport = { path = "crates/uhura-transport" }
+uhura-pg = { path = "crates/uhura-pg" }
+uhura-engine = { path = "crates/uhura-engine" }
+uhura-codec = { path = "crates/uhura-codec" }
+# externos
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+clap = { version = "4", features = ["derive", "env"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal"] }
+async-trait = "0.1"
+chrono = { version = "0.4", features = ["serde"] }
+
+[profile.release]
+lto = true
+strip = true

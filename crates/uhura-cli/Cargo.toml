@@ -1,0 +1,23 @@
+[package]
+name = "uhura-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Uhura message bus — CLI e engine (uhura-station)"
+
+[[bin]]
+name = "uhura"
+path = "src/main.rs"
+
+[dependencies]
+uhura-core.workspace = true
+uhura-transport.workspace = true
+uhura-pg.workspace = true
+uhura-engine.workspace = true
+uhura-codec.workspace = true
+clap.workspace = true
+tokio.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

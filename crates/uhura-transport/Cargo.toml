@@ -1,0 +1,11 @@
+[package]
+name = "uhura-transport"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+uhura-core.workspace = true
+async-trait.workspace = true
+tracing.workspace = true

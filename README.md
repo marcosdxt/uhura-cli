@@ -35,10 +35,29 @@ Dois papéis no mesmo binário:
 
 🚧 Em implementação a partir da `SPEC.md`. Recomendação de sequenciamento (§23.3 da spec): MVP em trigger/polling → trocar por WAL mantendo a ABI → endurecer operação.
 
+## Layout do workspace
+
+Workspace Cargo modular, alinhado às camadas da spec:
+
+```
+crates/
+  uhura-core/       # L0: envelope CloudEvents, config, erros (ABI estável)
+  uhura-transport/  # L1: trait UhuraTransport + driver RabbitMQ
+  uhura-pg/         # L2: outbox/inbox, schema, reader WAL/polling
+  uhura-engine/     # uhura-station: dispatcher + WAL reader + leader-election
+  uhura-codec/      # codegen de contratos (sync) + docs
+  uhura-cli/        # binário `uhura` (clap): roteia os subcomandos
+```
+
+Estado atual: **scaffold que compila** — árvore de comandos completa e camadas
+cabeadas; implementações retornam `Unimplemented`. Próximo: MVP de entrega
+(`db init` + outbox/polling + `topology apply` + dispatch com confirms).
+
 ## Desenvolvimento
 
 ```bash
-cargo build
-cargo test
-cargo test --features integration   # Testcontainers: Postgres + RabbitMQ
+cargo build --all-targets
+cargo test --all
+cargo fmt --all --check
+cargo clippy --all-targets --all-features -- -D warnings
 ```
