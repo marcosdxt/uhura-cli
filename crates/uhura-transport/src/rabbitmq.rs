@@ -9,8 +9,8 @@ use std::collections::HashSet;
 
 use async_trait::async_trait;
 use lapin::options::{
-    BasicPublishOptions, ConfirmSelectOptions, ExchangeDeclareOptions, QueueBindOptions,
-    QueueDeclareOptions,
+    BasicAckOptions, BasicGetOptions, BasicPublishOptions, ConfirmSelectOptions,
+    ExchangeDeclareOptions, QueueBindOptions, QueueDeclareOptions,
 };
 use lapin::publisher_confirm::Confirmation;
 use lapin::types::{AMQPValue, FieldTable};
@@ -51,17 +51,73 @@ impl RabbitMqTransport {
         })
     }
 
-    fn exchange_name(domain: &str) -> String {
+    /// Acesso ao canal (para consumidores que vivem fora do driver).
+    pub fn channel(&self) -> &Channel {
+        &self.channel
+    }
+
+    pub fn exchange_name(domain: &str) -> String {
         format!("uhura.{domain}")
     }
-    fn queue_name(domain: &str) -> String {
+    pub fn queue_name(domain: &str) -> String {
         format!("uhura.{domain}.q")
     }
-    fn parking_exchange(domain: &str) -> String {
+    pub fn parking_exchange(domain: &str) -> String {
         format!("uhura.{domain}.parking")
     }
-    fn parking_queue(domain: &str) -> String {
+    pub fn parking_queue(domain: &str) -> String {
         format!("uhura.{domain}.parking.q")
+    }
+
+    /// Nº de mensagens prontas numa fila (via declare passivo).
+    async fn queue_message_count(&self, queue: &str) -> Result<u32> {
+        let q = self
+            .channel
+            .queue_declare(
+                queue,
+                QueueDeclareOptions {
+                    passive: true,
+                    ..Default::default()
+                },
+                FieldTable::default(),
+            )
+            .await
+            .map_err(|e| Error::Transport(format!("declare passivo {queue}: {e}")))?;
+        Ok(q.message_count())
+    }
+
+    /// Contagem (main, parking) do domínio.
+    pub async fn depths(&self, domain: &str) -> Result<(u32, u32)> {
+        self.ensure_topology(domain).await?;
+        let main = self.queue_message_count(&Self::queue_name(domain)).await?;
+        let parking = self
+            .queue_message_count(&Self::parking_queue(domain))
+            .await?;
+        Ok((main, parking))
+    }
+
+    /// Reenvia (replay) todas as mensagens do parking de volta à exchange do domínio.
+    pub async fn parking_replay(&self, domain: &str) -> Result<usize> {
+        self.ensure_topology(domain).await?;
+        let parking_q = Self::parking_queue(domain);
+        let mut count = 0usize;
+        loop {
+            let got = self
+                .channel
+                .basic_get(&parking_q, BasicGetOptions { no_ack: false })
+                .await
+                .map_err(|e| Error::Transport(format!("basic_get parking: {e}")))?;
+            let Some(msg) = got else { break };
+            let envelope: Envelope = serde_json::from_slice(&msg.delivery.data)
+                .map_err(|e| Error::Transport(format!("parse mensagem do parking: {e}")))?;
+            self.publish(domain, &envelope).await?;
+            msg.delivery
+                .ack(BasicAckOptions::default())
+                .await
+                .map_err(|e| Error::Transport(format!("ack parking: {e}")))?;
+            count += 1;
+        }
+        Ok(count)
     }
 
     async fn declare_topology(&self, domain: &str) -> Result<()> {

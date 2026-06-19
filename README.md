@@ -58,9 +58,17 @@ RabbitMQ reais):
 - `uhura topology apply --domain <d>` — declara exchange + quorum queue + DLX/parking.
 - `uhura station` — lê o outbox em ordem, publica com **publisher confirms**,
   marca como publicado só após `ack`; para no 1º erro do lote (ordem/backpressure).
+- `uhura consume <domínio> [--reject k]` — consome com **idempotência** (Inbox),
+  `ack` no sucesso, `nack`→retry/parking no poison.
+- `uhura parking replay --domain <d>` — reenvia o parking para a exchange.
+- `uhura top --domain <d>` — contagem das filas main/parking.
 
-Ainda `Unimplemented`: `sync`/`doc` (codegen), `db sync` (.cdc), `top`,
-`parking`, `method` (RPC), e o WAL logical decoding (entra sem mudar a ABI).
+Loop de confiabilidade **verificado end-to-end** (publish → station → consume →
+dedup → poison → parking → replay) com Postgres + RabbitMQ reais, e coberto por
+testes de integração (testcontainers) em `uhura-pg` e `uhura-transport`.
+
+Ainda `Unimplemented`: `sync`/`doc` (codegen de contratos), `db sync` (.cdc),
+`method` (RPC), e o WAL logical decoding (entra sem mudar a ABI).
 
 ## Desenvolvimento
 

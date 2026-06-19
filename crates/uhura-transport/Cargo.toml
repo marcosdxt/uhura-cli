@@ -5,6 +5,10 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[features]
+# Testes que sobem RabbitMQ real via testcontainers.
+integration = []
+
 [dependencies]
 uhura-core.workspace = true
 async-trait.workspace = true
@@ -12,3 +16,7 @@ tracing.workspace = true
 tokio.workspace = true
 lapin.workspace = true
 serde_json.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
+testcontainers-modules = { version = "0.13", features = ["rabbitmq"] }

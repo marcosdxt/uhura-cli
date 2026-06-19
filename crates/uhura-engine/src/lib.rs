@@ -5,6 +5,9 @@
 //! erro do lote para preservar ordem e aplicar backpressure (ver `SPEC.md`
 //! §10/§11). WAL logical decoding entra depois sem mudar a ABI.
 
+mod consumer;
+pub use consumer::Consumer;
+
 use std::sync::Arc;
 use std::time::Duration;
 

@@ -17,9 +17,10 @@ pub async fn dispatch(cli: Cli) -> anyhow::Result<()> {
         Command::Db { cmd } => cmd_db(cmd).await,
         Command::Station(a) => cmd_station(a).await,
         Command::Topology { cmd } => cmd_topology(cmd).await,
-        Command::Top => cmd_top(),
-        Command::Parking { cmd } => cmd_parking(cmd),
+        Command::Top(a) => cmd_top(a).await,
+        Command::Parking { cmd } => cmd_parking(cmd).await,
         Command::Publish(a) => cmd_publish(a).await,
+        Command::Consume(a) => cmd_consume(a).await,
         Command::Method(a) => cmd_method(a),
         Command::Doc(a) => cmd_doc(a),
     }
@@ -91,21 +92,49 @@ async fn cmd_topology(cmd: TopologyCmd) -> anyhow::Result<()> {
     }
 }
 
-fn cmd_top() -> anyhow::Result<()> {
-    report(Err(uhura_core::Error::Unimplemented(
-        "top: TUI de monitoração",
-    )))
+async fn cmd_top(a: TopArgs) -> anyhow::Result<()> {
+    let url = a.amqp_url.unwrap_or_else(default_amqp);
+    if a.domains.is_empty() {
+        println!("uhura: informe ao menos um --domain.");
+        return Ok(());
+    }
+    let transport = uhura_transport::rabbitmq::RabbitMqTransport::connect(&url).await?;
+    println!("{:<32} {:>8} {:>8}", "DOMÍNIO", "MAIN", "PARKING");
+    for domain in &a.domains {
+        let (main, parking) = transport.depths(domain).await?;
+        println!("{domain:<32} {main:>8} {parking:>8}");
+    }
+    Ok(())
 }
 
-fn cmd_parking(cmd: ParkingCmd) -> anyhow::Result<()> {
-    let (action, a) = match cmd {
-        ParkingCmd::List(a) => ("list", a),
-        ParkingCmd::Replay(a) => ("replay", a),
+async fn cmd_parking(cmd: ParkingCmd) -> anyhow::Result<()> {
+    let (replay, a) = match cmd {
+        ParkingCmd::List(a) => (false, a),
+        ParkingCmd::Replay(a) => (true, a),
     };
-    tracing::info!(action, domain = ?a.domain, amqp = ?a.amqp_url, "uhura parking");
-    report(Err(uhura_core::Error::Unimplemented(
-        "parking: list/replay",
-    )))
+    let domain = a
+        .domain
+        .ok_or_else(|| anyhow::anyhow!("--domain é obrigatório"))?;
+    let url = a.amqp_url.unwrap_or_else(default_amqp);
+    let transport = uhura_transport::rabbitmq::RabbitMqTransport::connect(&url).await?;
+    if replay {
+        let n = transport.parking_replay(&domain).await?;
+        println!("uhura: {n} mensagem(ns) reenviada(s) do parking de '{domain}'.");
+    } else {
+        let (_, parking) = transport.depths(&domain).await?;
+        println!("uhura: parking de '{domain}' tem {parking} mensagem(ns).");
+    }
+    Ok(())
+}
+
+async fn cmd_consume(a: ConsumeArgs) -> anyhow::Result<()> {
+    let consumer = uhura_engine::Consumer {
+        amqp_url: a.amqp_url.unwrap_or_else(default_amqp),
+        postgres_url: a.postgres_url.unwrap_or_else(default_pg),
+        domain: a.domain,
+        reject_partition: a.reject,
+    };
+    consumer.run().await.map_err(anyhow::Error::from)
 }
 
 async fn cmd_publish(a: PublishArgs) -> anyhow::Result<()> {

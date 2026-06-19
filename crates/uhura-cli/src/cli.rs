@@ -34,8 +34,8 @@ pub enum Command {
         #[command(subcommand)]
         cmd: TopologyCmd,
     },
-    /// TUI de monitoração (filas, lag de slot, mensagens paradas).
-    Top,
+    /// Monitoração: contagem das filas (main/parking) por domínio.
+    Top(TopArgs),
     /// Parking lot: listar e reenviar mensagens.
     Parking {
         #[command(subcommand)]
@@ -43,6 +43,8 @@ pub enum Command {
     },
     /// Publica um evento de contrato (injeção de primitiva).
     Publish(PublishArgs),
+    /// Consome eventos de um domínio (diagnóstico) com idempotência via Inbox.
+    Consume(ConsumeArgs),
     /// Chama um método RPC (injeção de primitiva).
     Method(MethodArgs),
     /// Gera/serve a documentação de contratos e serviços.
@@ -168,6 +170,31 @@ pub struct PublishArgs {
     /// URL do PostgreSQL.
     #[arg(long, env = "UHURA_PG_URL")]
     pub postgres_url: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct TopArgs {
+    /// Domínio a inspecionar (repetível).
+    #[arg(long = "domain")]
+    pub domains: Vec<String>,
+    /// URL AMQP do RabbitMQ.
+    #[arg(long, env = "UHURA_AMQP_URL")]
+    pub amqp_url: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct ConsumeArgs {
+    /// Domínio (ex.: `usuario.info`).
+    pub domain: String,
+    /// URL AMQP do RabbitMQ.
+    #[arg(long, env = "UHURA_AMQP_URL")]
+    pub amqp_url: Option<String>,
+    /// URL do PostgreSQL (Inbox).
+    #[arg(long, env = "UHURA_PG_URL")]
+    pub postgres_url: Option<String>,
+    /// Rejeita mensagens desta partição (simula poison → parking).
+    #[arg(long)]
+    pub reject: Option<String>,
 }
 
 #[derive(Debug, Args)]

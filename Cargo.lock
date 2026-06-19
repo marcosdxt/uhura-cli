@@ -3432,7 +3432,11 @@ name = "uhura-engine"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "futures-util",
+ "lapin",
+ "serde_json",
  "tokio",
+ "tokio-postgres",
  "tracing",
  "uhura-core",
  "uhura-pg",
@@ -3460,6 +3464,7 @@ dependencies = [
  "async-trait",
  "lapin",
  "serde_json",
+ "testcontainers-modules",
  "tokio",
  "tracing",
  "uhura-core",
