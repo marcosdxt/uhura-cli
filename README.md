@@ -71,14 +71,18 @@ testes de integração (testcontainers) em `uhura-pg` e `uhura-transport`.
 
 - `uhura db sync --cdc <dir>` — lê arquivos `.cdc` (JSON5) e gera triggers de
   **CDC** nas tabelas de negócio; cada mudança vira um evento no `uhura_outbox`.
+- `uhura sync --contracts <dir> --out <dir>` — **codegen**: parseia os contratos
+  TypeScript (`@UhuraContract`) via tree-sitter e gera structs Rust + docs.
+- `uhura doc --contracts <dir> --out <dir>` — gera documentação (Markdown + HTML).
 
 Cliente RPC (`uhura call`) **verificado em interop** contra um servidor
 `@UhuraFunction` do SDK NestJS. CDC trigger-based **verificado e2e** (INSERT/
-UPDATE/DELETE → outbox → station → consumer, em ordem por entidade).
+UPDATE/DELETE → outbox → station → consumer, em ordem por entidade). Codegen
+**verificado**: o Rust gerado compila (serde + chrono), tipos mapeados
+(`string`→`String`, `Date`→`chrono::DateTime<Utc>`, `T[]`→`Vec<T>`, `field?`→`Option`).
 
-Ainda `Unimplemented`: `sync`/`doc` (codegen de contratos) e o WAL logical
-decoding (substitui o polling/triggers sem mudar a ABI). (`method` é alias
-legado de `call`.)
+Ainda `Unimplemented`: o WAL logical decoding (substitui o polling/triggers sem
+mudar a ABI). (`method` é alias legado de `call`.)
 
 ## Desenvolvimento
 

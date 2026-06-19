@@ -9,4 +9,7 @@ repository.workspace = true
 uhura-core.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+json5.workspace = true
 tracing.workspace = true
+tree-sitter = "0.22"
+tree-sitter-typescript = "0.21"
