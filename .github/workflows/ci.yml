@@ -34,3 +34,18 @@ jobs:
 
       - name: Test
         run: cargo test --all --locked
+
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      # Docker já está disponível no runner; testcontainers sobe Postgres/RabbitMQ.
+      - name: Integration tests (testcontainers)
+        run: cargo test -p uhura-pg --features integration --locked

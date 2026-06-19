@@ -1,6 +1,17 @@
-//! Camada L2 (armazenamento) — outbox/inbox e schema no PostgreSQL (scaffold).
+//! Camada L2 (armazenamento) — outbox/inbox e schema no PostgreSQL.
 //!
 //! Postgres é a única fonte durável de verdade (ver `SPEC.md` §2/§13).
+//! O MVP usa o caminho **outbox + polling**; o WAL logical decoding entra depois
+//! sem mudar a ABI nem o Inbox.
+
+mod conn;
+mod inbox;
+mod outbox;
+pub mod schema;
+
+pub use conn::connect;
+pub use inbox::Inbox;
+pub use outbox::{Outbox, OutboxRecord};
 
 use async_trait::async_trait;
 use uhura_core::{Envelope, Result};
@@ -9,6 +20,8 @@ use uhura_core::{Envelope, Result};
 pub type Cursor = String;
 
 /// Leitor de eventos a publicar — implementado por WAL (preferencial) ou polling.
+///
+/// Abstração-alvo para o engine; o MVP usa [`Outbox`] diretamente.
 #[async_trait]
 pub trait OutboxReader: Send + Sync {
     /// Próximo lote de envelopes a despachar, em ordem de commit.
@@ -16,21 +29,4 @@ pub trait OutboxReader: Send + Sync {
 
     /// Persiste o cursor após confirmação do broker.
     async fn commit_cursor(&mut self, up_to: &Cursor) -> Result<()>;
-}
-
-/// Operações de schema (`uhura db init` / `uhura db sync`).
-pub mod schema {
-    use uhura_core::{Error, Result};
-
-    /// Cria `wal_level`/replication slot e tabelas `uhura_outbox`/`uhura_inbox`.
-    pub async fn init(postgres_url: &str) -> Result<()> {
-        tracing::debug!(target: "uhura_pg", url = %postgres_url, "db init (scaffold)");
-        Err(Error::Unimplemented("db: init"))
-    }
-
-    /// Gera/aplica migrations a partir dos arquivos `.cdc`.
-    pub async fn sync(postgres_url: &str, cdc_dir: &str) -> Result<()> {
-        tracing::debug!(target: "uhura_pg", url = %postgres_url, cdc = %cdc_dir, "db sync (scaffold)");
-        Err(Error::Unimplemented("db: sync"))
-    }
 }

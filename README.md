@@ -49,15 +49,35 @@ crates/
   uhura-cli/        # binário `uhura` (clap): roteia os subcomandos
 ```
 
-Estado atual: **scaffold que compila** — árvore de comandos completa e camadas
-cabeadas; implementações retornam `Unimplemented`. Próximo: MVP de entrega
-(`db init` + outbox/polling + `topology apply` + dispatch com confirms).
+Estado atual: **MVP de entrega funcional** (verificado end-to-end com Postgres +
+RabbitMQ reais):
+
+- `uhura db init` — cria `uhura_outbox`/`uhura_inbox` + trigger de NOTIFY.
+- `uhura publish <domínio> <evento> --data <json> [--partition k]` — grava o
+  evento (envelope CloudEvents) no outbox.
+- `uhura topology apply --domain <d>` — declara exchange + quorum queue + DLX/parking.
+- `uhura station` — lê o outbox em ordem, publica com **publisher confirms**,
+  marca como publicado só após `ack`; para no 1º erro do lote (ordem/backpressure).
+
+Ainda `Unimplemented`: `sync`/`doc` (codegen), `db sync` (.cdc), `top`,
+`parking`, `method` (RPC), e o WAL logical decoding (entra sem mudar a ABI).
 
 ## Desenvolvimento
 
 ```bash
 cargo build --all-targets
-cargo test --all
+cargo test --all                                   # unitários
+cargo test -p uhura-pg --features integration      # integração (Docker/testcontainers)
 cargo fmt --all --check
 cargo clippy --all-targets --all-features -- -D warnings
+```
+
+### Exemplo end-to-end local
+
+```bash
+export UHURA_PG_URL="postgres://uhura:uhura@127.0.0.1:5544/uhura"
+export UHURA_AMQP_URL="amqp://guest:guest@127.0.0.1:5673"
+uhura db init
+uhura publish usuario.info started --data '{"id":"42"}' --partition 42
+uhura station          # despacha; Ctrl-C para sair
 ```

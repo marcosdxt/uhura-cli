@@ -6,6 +6,8 @@
 
 use std::sync::Arc;
 
+use uhura_transport::UhuraTransport;
+
 use crate::cli::*;
 
 /// Roteia o comando parseado para o handler correspondente.
@@ -14,10 +16,10 @@ pub async fn dispatch(cli: Cli) -> anyhow::Result<()> {
         Command::Sync(a) => cmd_sync(a),
         Command::Db { cmd } => cmd_db(cmd).await,
         Command::Station(a) => cmd_station(a).await,
-        Command::Topology { cmd } => cmd_topology(cmd),
+        Command::Topology { cmd } => cmd_topology(cmd).await,
         Command::Top => cmd_top(),
         Command::Parking { cmd } => cmd_parking(cmd),
-        Command::Publish(a) => cmd_publish(a),
+        Command::Publish(a) => cmd_publish(a).await,
         Command::Method(a) => cmd_method(a),
         Command::Doc(a) => cmd_doc(a),
     }
@@ -61,18 +63,30 @@ async fn cmd_station(a: StationArgs) -> anyhow::Result<()> {
         debug: false,
     };
     tracing::info!(capture = ?a.capture, "iniciando uhura-station");
-    let transport = Arc::new(uhura_transport::rabbitmq::RabbitMqTransport::new(
-        config.amqp_url.clone(),
-    ));
-    let station = uhura_engine::Station::new(config, transport);
-    report(station.run().await)
+    let transport = uhura_transport::rabbitmq::RabbitMqTransport::connect(&config.amqp_url).await?;
+    let station = uhura_engine::Station::new(config, Arc::new(transport));
+    station.run().await.map_err(anyhow::Error::from)
 }
 
-fn cmd_topology(cmd: TopologyCmd) -> anyhow::Result<()> {
+async fn cmd_topology(cmd: TopologyCmd) -> anyhow::Result<()> {
     match cmd {
         TopologyCmd::Apply(a) => {
-            tracing::info!(amqp = ?a.amqp_url, check = a.check, "uhura topology apply");
-            report(Err(uhura_core::Error::Unimplemented("topology: apply")))
+            let url = a.amqp_url.unwrap_or_else(default_amqp);
+            tracing::info!(domains = ?a.domains, check = a.check, "uhura topology apply");
+            let transport = uhura_transport::rabbitmq::RabbitMqTransport::connect(&url).await?;
+            if a.domains.is_empty() {
+                println!("uhura: informe ao menos um --domain.");
+                return Ok(());
+            }
+            for domain in &a.domains {
+                if a.check {
+                    println!("uhura: (check) conexão OK — topologia de '{domain}' não aplicada.");
+                } else {
+                    transport.ensure_topology(domain).await?;
+                    println!("uhura: topologia aplicada para '{domain}'.");
+                }
+            }
+            Ok(())
         }
     }
 }
@@ -94,9 +108,36 @@ fn cmd_parking(cmd: ParkingCmd) -> anyhow::Result<()> {
     )))
 }
 
-fn cmd_publish(a: PublishArgs) -> anyhow::Result<()> {
-    tracing::info!(domain = %a.domain, event = %a.event, data = %a.data, "uhura publish");
-    report(Err(uhura_core::Error::Unimplemented("publish")))
+async fn cmd_publish(a: PublishArgs) -> anyhow::Result<()> {
+    tracing::info!(domain = %a.domain, event = %a.event, "uhura publish");
+
+    let data: serde_json::Value = serde_json::from_str(&a.data)
+        .map_err(|e| anyhow::anyhow!("--data não é JSON válido: {e}"))?;
+
+    // Monta o envelope CloudEvents 1.0 (ver SPEC.md §7).
+    let mut envelope = uhura_core::Envelope::new(
+        uuid::Uuid::new_v4().to_string(),
+        a.source.clone(),
+        format!("{}.{}", a.domain, a.event),
+    );
+    envelope.time = Some(chrono::Utc::now());
+    envelope.subject = a.partition.clone();
+    envelope.partitionkey = a.partition.clone();
+    envelope.facttype = Some(uhura_core::FactType::Event);
+    envelope.data = Some(data);
+
+    let url = a.postgres_url.unwrap_or_else(default_pg);
+    let client = uhura_pg::connect(&url).await?;
+    let outbox = uhura_pg::Outbox::new(&client);
+    let id = outbox
+        .insert(&a.domain, &a.event, a.partition.as_deref(), &envelope)
+        .await?;
+
+    println!(
+        "uhura: evento gravado no outbox (id={id}, type={}).",
+        envelope.r#type
+    );
+    Ok(())
 }
 
 fn cmd_method(a: MethodArgs) -> anyhow::Result<()> {

@@ -5,7 +5,19 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[features]
+# Testes que sobem containers reais (Postgres) via testcontainers.
+integration = []
+
 [dependencies]
 uhura-core.workspace = true
 async-trait.workspace = true
 tracing.workspace = true
+tokio.workspace = true
+tokio-postgres.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+testcontainers-modules = { version = "0.13", features = ["postgres"] }

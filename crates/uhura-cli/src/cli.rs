@@ -121,10 +121,13 @@ pub enum TopologyCmd {
 
 #[derive(Debug, Args)]
 pub struct TopologyArgs {
+    /// Domínio a declarar (repetível: `--domain a --domain b`).
+    #[arg(long = "domain")]
+    pub domains: Vec<String>,
     /// URL AMQP do RabbitMQ.
     #[arg(long, env = "UHURA_AMQP_URL")]
     pub amqp_url: Option<String>,
-    /// Apenas valida, sem aplicar.
+    /// Apenas valida a conexão, sem declarar.
     #[arg(long)]
     pub check: bool,
 }
@@ -156,6 +159,15 @@ pub struct PublishArgs {
     /// Payload JSON.
     #[arg(long)]
     pub data: String,
+    /// Chave de partição (ordenação). Default: ausente.
+    #[arg(long)]
+    pub partition: Option<String>,
+    /// Origem do evento (`source` do CloudEvents).
+    #[arg(long, default_value = "uhura-cli")]
+    pub source: String,
+    /// URL do PostgreSQL.
+    #[arg(long, env = "UHURA_PG_URL")]
+    pub postgres_url: Option<String>,
 }
 
 #[derive(Debug, Args)]
