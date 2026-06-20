@@ -3606,6 +3606,7 @@ name = "uhura-engine"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "chrono",
  "futures-util",
  "lapin",
  "serde_json",

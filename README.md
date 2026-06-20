@@ -76,6 +76,8 @@ testes de integração (testcontainers) em `uhura-pg` e `uhura-transport`.
 - `uhura sync --contracts <dir> --out <dir>` — **codegen**: parseia os contratos
   TypeScript (`@UhuraContract`) via tree-sitter e gera structs Rust + docs.
 - `uhura doc --contracts <dir> --out <dir>` — gera documentação (Markdown + HTML).
+- `uhura wal --cdc <dir>` — **CDC via WAL logical decoding** (slot + `test_decoding`,
+  sem triggers); mapeia tabela → contrato pelos `.cdc` e publica com confirms.
 
 Cliente RPC (`uhura call`) **verificado em interop** contra um servidor
 `@UhuraFunction` do SDK NestJS. CDC trigger-based **verificado e2e** (INSERT/
@@ -83,8 +85,13 @@ UPDATE/DELETE → outbox → station → consumer, em ordem por entidade). Codeg
 **verificado**: o Rust gerado compila (serde + chrono), tipos mapeados
 (`string`→`String`, `Date`→`chrono::DateTime<Utc>`, `T[]`→`Vec<T>`, `field?`→`Option`).
 
-Ainda `Unimplemented`: o WAL logical decoding (substitui o polling/triggers sem
-mudar a ABI). (`method` é alias legado de `call`.)
+**WAL logical decoding verificado e2e**: `wal_level=logical` + slot `test_decoding`;
+INSERT/UPDATE/DELETE (sem triggers) → captura → publish → consumer, com id
+determinístico (`<slot>:<lsn>:<id>`) para dedup. Parser do `test_decoding` coberto
+por testes unitários.
+
+Todos os comandos da §14 estão implementados. (`method` é alias legado de `call`;
+o WAL é alternativa ao trigger+polling, mesma ABI de eventos.)
 
 ## Desenvolvimento
 

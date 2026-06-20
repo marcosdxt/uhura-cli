@@ -68,7 +68,8 @@ pub async fn sync(postgres_url: &str, cdc_dir: &str) -> Result<()> {
     Ok(())
 }
 
-fn read_specs(dir: &str) -> Result<Vec<CdcSpec>> {
+/// Lê e parseia todos os arquivos `.cdc` (JSON5) de um diretório.
+pub fn read_specs(dir: &str) -> Result<Vec<CdcSpec>> {
     let entries =
         fs::read_dir(dir).map_err(|e| Error::Storage(format!("ler diretório {dir}: {e}")))?;
     let mut out = Vec::new();

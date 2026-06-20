@@ -16,6 +16,7 @@ pub async fn dispatch(cli: Cli) -> anyhow::Result<()> {
         Command::Sync(a) => cmd_sync(a),
         Command::Db { cmd } => cmd_db(cmd).await,
         Command::Station(a) => cmd_station(a).await,
+        Command::Wal(a) => cmd_wal(a).await,
         Command::Topology { cmd } => cmd_topology(cmd).await,
         Command::Top(a) => cmd_top(a).await,
         Command::Serve(a) => cmd_serve(a).await,
@@ -69,6 +70,14 @@ async fn cmd_station(a: StationArgs) -> anyhow::Result<()> {
     let transport = uhura_transport::rabbitmq::RabbitMqTransport::connect(&config.amqp_url).await?;
     let station = uhura_engine::Station::new(config, Arc::new(transport));
     station.run().await.map_err(anyhow::Error::from)
+}
+
+async fn cmd_wal(a: WalArgs) -> anyhow::Result<()> {
+    let pg = a.postgres_url.unwrap_or_else(default_pg);
+    let amqp = a.amqp_url.unwrap_or_else(default_amqp);
+    let transport = Arc::new(uhura_transport::rabbitmq::RabbitMqTransport::connect(&amqp).await?);
+    let capture = uhura_engine::WalCapture::new(pg, transport, &a.cdc)?;
+    capture.run().await.map_err(anyhow::Error::from)
 }
 
 async fn cmd_topology(cmd: TopologyCmd) -> anyhow::Result<()> {

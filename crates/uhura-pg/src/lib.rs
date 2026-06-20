@@ -9,6 +9,7 @@ mod inbox;
 mod outbox;
 pub mod schema;
 pub mod stats;
+pub mod wal;
 
 pub use conn::connect;
 pub use inbox::Inbox;

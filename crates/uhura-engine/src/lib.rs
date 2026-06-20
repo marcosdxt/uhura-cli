@@ -6,7 +6,9 @@
 //! §10/§11). WAL logical decoding entra depois sem mudar a ABI.
 
 mod consumer;
+mod wal;
 pub use consumer::Consumer;
+pub use wal::WalCapture;
 
 use std::sync::Arc;
 use std::time::Duration;

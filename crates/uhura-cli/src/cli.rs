@@ -29,6 +29,8 @@ pub enum Command {
     },
     /// Sobe o engine uhura-station (WAL reader + dispatcher + métricas).
     Station(StationArgs),
+    /// Captura CDC via WAL logical decoding (slot + test_decoding).
+    Wal(WalArgs),
     /// Cria/valida a topologia RabbitMQ (exchanges, quorum queues, DLX, parking).
     Topology {
         #[command(subcommand)]
@@ -117,6 +119,19 @@ pub struct StationArgs {
     /// Modo de captura: `wal` (preferencial) ou `poll` (compatível).
     #[arg(long, default_value = "wal")]
     pub capture: CaptureMode,
+}
+
+#[derive(Debug, Args)]
+pub struct WalArgs {
+    /// URL AMQP do RabbitMQ.
+    #[arg(long, env = "UHURA_AMQP_URL")]
+    pub amqp_url: Option<String>,
+    /// URL do PostgreSQL (com `wal_level=logical`).
+    #[arg(long, env = "UHURA_PG_URL")]
+    pub postgres_url: Option<String>,
+    /// Diretório com arquivos `.cdc` (mapeamento tabela → contrato).
+    #[arg(long, default_value = "./cdc")]
+    pub cdc: String,
 }
 
 #[derive(Debug, Subcommand)]
